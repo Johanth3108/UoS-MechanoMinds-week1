@@ -1,0 +1,7 @@
+<launch>
+  <include file="$(find turtlebot3_gazebo)/launch/turtlebot3_empty_world.launch" />
+  <!-- <include file="$(find turtlebot3_gazebo)/launch/turtlebot3_empty_world.launch" /> -->
+
+  <node pkg="week1_pubsub" type="move_circle.py" name="circle_commander" output="screen">
+  </node>
+</launch>
