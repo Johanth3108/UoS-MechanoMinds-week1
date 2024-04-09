@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import rospy
 
 # import the Twist message for publishing velocity commands:
@@ -12,8 +11,6 @@ from tf.transformations import euler_from_quaternion
 
 # import some useful mathematical operations (and pi), which you may find useful:
 from math import sqrt, pow, pi
-
-import time
 
 class Square():
     def callback_function(self, topic_data: Odometry):
@@ -91,71 +88,62 @@ class Square():
         self.pub.publish(Twist())
         self.ctrl_c = True
 
-    def go_forward(self, duration, speed):
-
-        # Get the initial time
-        self.t_init = time.time()
-
-        # Set the velocity forward and wait (do it in a while loop to keep publishing the velocity)
-        while time.time() - self.t_init < duration and not rospy.is_shutdown():
-
-            msg = Twist()
-            msg.linear.x = speed
-            msg.angular.z = 0
-            self.pub.publish(msg)
-            time.sleep(0.1)
-
-    def turn(self, duration, ang_speed):
-
-         # Get the initial time
-        self.t_init = time.time()
-
-        # Set the velocity forward and wait 2 sec (do it in a while loop to keep publishing the velocity)
-        while time.time() - self.t_init < duration and not rospy.is_shutdown():
-
-            tmsg = Twist()
-            tmsg.linear.x = 0
-            tmsg.angular.z = ang_speed
-            self.pub.publish(tmsg)
-            time.sleep(0.1)
-
-    def stop_robot(self, duration):
-
-         # Get the initial time
-        self.t_init = time.time()
-
-        # Set the velocity forward and wait 2 sec (do it in a while loop to keep publishing the velocity)
-        while time.time() - self.t_init < duration and not rospy.is_shutdown():
-
-            msg = Twist()
-            msg.linear.x = 0
-            msg.angular.z = 0
-            self.pub.publish(msg)
-            time.sleep(10)
-
     def main_loop(self):
-        while not self.ctrl_c:
-            # here is where your code would go to control the motion of your
-            # robot. Add code here to make your robot move in a square of
-            # dimensions 1 x 1m...
+    # Define the side length of the square (1 meter):
+        side_length = 1.0
 
-            # publish whatever velocity command has been set in your code above:
-            self.turn(3.5, 0.5)
-            self.go_forward(2, 0.5)
-            self.turn(3.5, 0.5)
-            self.go_forward(2, 0.5)
-            self.turn(3.5, 0.5)
-            self.go_forward(2, 0.5)
-            self.turn(3.5, 0.5)
-            self.go_forward(2, 0.5)
-            self.stop_robot()
-            # self.pub.publish(self.vel)
-            # maintain the loop rate @ 10 hz
+        
+        # Set the linear velocity (forward speed) to 0.1 m/s:
+        self.vel.linear.x = 0.1
+        self.vel.linear.y = 0.0
+        self.vel.linear.z = 0.0
+
+        # Set the angular velocity (rotation speed) to 0.0 rad/s:
+        self.vel.angular.x = 0.0
+        self.vel.angular.y = 0.0
+        self.vel.angular.z = 0.0
+        # Move forward for the side length:
+        distance_moved = 0.0
+        self.x0 = self.x  # Reset reference position for each side
+        self.y0 = self.y
+        while distance_moved < side_length:
+            self.pub.publish(self.vel)
             self.rate.sleep()
+            # Calculate the distance moved using the difference
+            # between current position and reference position:
+            distance_moved = sqrt(pow(self.x - self.x0, 2) + pow(self.y - self.y0, 2))
+            print(distance_moved)
+
+
+        # Stop the robot:
+        self.vel.linear.x = 0.0
+        self.vel.linear.y = 0.0
+        self.vel.linear.z = 0.0
+        self.vel.angular.z = 0.0
+        self.pub.publish(self.vel)
+        rospy.sleep(2.)
+
+        # Rotate the robot by 90 degrees for the next side:
+        initial_yaw = self.theta_z
+        target_yaw = initial_yaw + (pi / 2)  # 90 degrees in radians
+
+        # Keep rotating until the desired angle is reached:
+        while abs(self.theta_z - initial_yaw) < abs(target_yaw - initial_yaw):
+            self.vel.angular.z = 0.3  # Angular velocity for rotation
+            self.pub.publish(self.vel)
+            # print("turn")
+            self.rate.sleep()
+
+        # Stop the robot after reaching the desired angle:
+        self.vel.angular.z = 0.0
+        self.pub.publish(self.vel)
+        self.rate.sleep()
+
 
 if __name__ == "__main__":
     node = Square()
     try:
-        node.main_loop()
+        for _ in range(4):
+            node.main_loop()
     except rospy.ROSInterruptException:
         pass
